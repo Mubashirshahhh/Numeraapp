@@ -1,0 +1,798 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <!-- ─── Numera backend config ───────────────────────────────────────────
+       This is the ONLY line you need to edit once your Flask backend
+       (app.py) is deployed to a real host (Render, Railway, Fly.io, etc).
+       Replace the empty string with that host's URL, e.g.
+       "https://numera-backend.onrender.com" (no trailing slash). -->
+  <script>const NUMERA_APP_URL = "";</script>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Numera — Watch math move</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.css">
+<style>
+  :root{
+    --bg:#07070c;--bg-soft:#0d0d16;--panel:#12121e;--panel-2:#161623;--line:#1f2030;
+    --text:#f2f2f5;--text-dim:#9a9aa8;
+    --purple:#8b5cf6;--pink:#ec4899;--blue:#4f7bff;--cyan:#22d3ee;--green:#4ade80;--red:#f87171;
+    --grad:linear-gradient(100deg,var(--purple),var(--pink) 55%,#f9a55a 100%);
+    --sp-1:4px;--sp-2:8px;--sp-3:12px;--sp-4:16px;--sp-5:20px;--sp-6:24px;--sp-7:32px;--sp-8:40px;--sp-9:48px;--sp-10:64px;--sp-11:80px;--sp-12:96px;
+    --r-sm:8px;--r-md:12px;--r-lg:16px;
+  }
+  *{margin:0;padding:0;box-sizing:border-box;}
+  html{scroll-behavior:smooth;}
+  html,body{background:var(--bg);color:var(--text);font-family:'Inter',ui-sans-serif,system-ui,sans-serif;width:100%;overflow-x:hidden;}
+  a{color:inherit;text-decoration:none;}
+  button{font-family:inherit;border:none;background:none;color:inherit;cursor:pointer;}
+  input,select,textarea{font-family:inherit;}
+  section{scroll-margin-top:84px;}
+  ::selection{background:var(--purple);color:#fff;}
+
+  .wrap{min-height:100vh;display:flex;flex-direction:column;background:radial-gradient(70% 60% at 78% 10%,rgba(139,92,246,0.16),transparent 60%),radial-gradient(50% 45% at 95% 40%,rgba(236,72,153,0.10),transparent 60%),var(--bg);position:relative;}
+
+  .announce{background:var(--grad);color:#0a0a0f;font-size:13.5px;font-weight:600;text-align:center;padding:var(--sp-3) var(--sp-5);letter-spacing:0.1px;}
+  .announce button{text-decoration:underline;text-underline-offset:2px;font-weight:600;}
+
+  nav{display:flex;align-items:center;justify-content:space-between;padding:var(--sp-5) var(--sp-9);z-index:50;position:sticky;top:0;background:rgba(7,7,12,0.72);backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);border-bottom:1px solid transparent;transition:border-color .2s ease;}
+  nav.scrolled{border-bottom-color:var(--line);}
+  .logo{display:flex;align-items:center;gap:var(--sp-2);font-weight:800;font-size:20px;letter-spacing:-0.02em;cursor:pointer;background:none;border:none;}
+  .logo-img{height:42px;width:auto;}
+  .nav-links{display:flex;gap:var(--sp-7);font-size:14.5px;font-weight:600;color:#e2e2e8;}
+  .nav-links a{padding:var(--sp-2) 0;}
+  .nav-links a:hover{color:var(--text);}
+  .nav-right{display:flex;align-items:center;gap:var(--sp-3);}
+  .hamburger{display:none;width:36px;height:36px;align-items:center;justify-content:center;border:1px solid var(--line);border-radius:var(--r-sm);}
+  .hamburger span,.hamburger span::before,.hamburger span::after{content:'';display:block;width:16px;height:2px;background:var(--text);position:relative;transition:transform .2s ease,opacity .2s ease;}
+  .hamburger span::before{position:absolute;top:-5px;}
+  .hamburger span::after{position:absolute;top:5px;}
+  .hamburger.open span{background:transparent;}
+  .hamburger.open span::before{transform:translateY(5px) rotate(45deg);}
+  .hamburger.open span::after{transform:translateY(-5px) rotate(-45deg);}
+
+  .btn{display:inline-flex;align-items:center;gap:var(--sp-2);padding:var(--sp-3) var(--sp-5);border-radius:var(--r-sm);font-size:14px;font-weight:600;cursor:pointer;white-space:nowrap;transition:transform .15s ease,opacity .15s ease,border-color .15s ease;line-height:1;}
+  .btn:hover{transform:translateY(-1px);}
+  .btn:active{transform:translateY(0);}
+  .arrow{width:14px;height:14px;flex-shrink:0;}
+  .btn-ghost{border:1px solid #2b2c3d;color:var(--text);background:transparent;}
+  .btn-ghost:hover{border-color:#45465f;}
+  .btn-solid{background:var(--text);color:#0a0a0f;}
+  .btn-solid:hover{opacity:.9;}
+  .btn-grad{background:var(--grad);color:#0a0a0f;}
+  .btn-block{width:100%;justify-content:center;}
+  .btn[disabled]{opacity:.5;cursor:not-allowed;transform:none;}
+
+  .hero{flex:1;display:flex;align-items:center;padding:var(--sp-10) var(--sp-9) var(--sp-12);position:relative;gap:var(--sp-9);}
+  .hero-copy{max-width:640px;z-index:3;}
+  .eyebrow{display:inline-flex;align-items:center;gap:var(--sp-2);font-family:'JetBrains Mono',monospace;font-size:12.5px;color:var(--cyan);border:1px solid rgba(34,211,238,0.25);background:rgba(34,211,238,0.06);padding:var(--sp-2) var(--sp-4);border-radius:999px;margin-bottom:var(--sp-6);}
+  .dot{width:6px;height:6px;border-radius:50%;background:var(--cyan);box-shadow:0 0 8px var(--cyan);flex-shrink:0;}
+  h1{font-weight:500;font-size:60px;line-height:1.08;letter-spacing:-0.01em;color:var(--text);}
+  h1 .grad-text{background:var(--grad);-webkit-background-clip:text;background-clip:text;color:transparent;}
+  .sub{margin-top:var(--sp-5);font-size:17px;line-height:1.65;color:var(--text-dim);max-width:520px;}
+  .sub code{font-family:'JetBrains Mono',monospace;font-size:15px;color:#c9c9d6;background:#15151f;padding:2px var(--sp-2);border-radius:5px;border:1px solid var(--line);}
+  .cta-row{display:flex;gap:var(--sp-4);margin-top:var(--sp-8);flex-wrap:wrap;}
+  .cta-row .btn{padding:var(--sp-4) var(--sp-6);font-size:15px;}
+  .hero-visual{flex:1;position:relative;display:flex;justify-content:center;align-items:center;min-width:380px;z-index:2;}
+  .stage{width:100%;max-width:520px;background:var(--panel);border:1px solid var(--line);border-radius:var(--r-lg);box-shadow:0 30px 80px -20px rgba(139,92,246,0.25);overflow:hidden;}
+  .stage-head{display:flex;align-items:center;justify-content:space-between;padding:var(--sp-4) var(--sp-6);border-bottom:1px solid var(--line);font-family:'JetBrains Mono',monospace;font-size:11.5px;color:var(--text-dim);}
+  .stage-head .flag{display:flex;align-items:center;gap:var(--sp-2);color:var(--green);}
+  .flag .dot{background:var(--green);box-shadow:0 0 6px var(--green);}
+  .eq-line{font-family:'JetBrains Mono',monospace;font-size:22px;padding:var(--sp-6) var(--sp-6) var(--sp-3);color:var(--text);letter-spacing:0.02em;display:flex;align-items:center;gap:2px;flex-wrap:wrap;}
+  .cursor{display:inline-block;width:2px;height:20px;background:var(--cyan);vertical-align:-4px;animation:blink 1s steps(1) infinite;}
+  @keyframes blink{50%{opacity:0;}}
+  .graph-box{margin:var(--sp-2) var(--sp-6) var(--sp-6);border-radius:var(--r-md);background:#0a0a12;border:1px solid var(--line);}
+  .render-bar{margin:0 var(--sp-6) var(--sp-6);padding:var(--sp-3) var(--sp-4);border-radius:var(--r-sm);background:var(--grad);color:#0a0a0f;font-size:13px;font-weight:600;text-align:center;display:flex;align-items:center;justify-content:center;gap:var(--sp-2);cursor:pointer;}
+  .float-card{position:absolute;right:var(--sp-9);bottom:var(--sp-9);max-width:330px;background:var(--panel);border:1px solid var(--line);border-radius:var(--r-lg);padding:var(--sp-5) var(--sp-6);display:flex;gap:var(--sp-4);align-items:flex-start;box-shadow:0 20px 50px -15px rgba(0,0,0,0.6);z-index:4;}
+  .float-icon{width:36px;height:36px;border-radius:var(--r-sm);background:var(--grad);display:flex;align-items:center;justify-content:center;font-size:16px;flex-shrink:0;}
+  .float-card .t1{font-size:13.5px;font-weight:600;margin-bottom:var(--sp-1);}
+  .float-card .t2{font-size:12.5px;color:var(--text-dim);line-height:1.5;}
+
+  .section{padding:var(--sp-12) var(--sp-9);}
+  .section-soft{background:var(--bg-soft);}
+  .section-inner{max-width:1180px;margin:0 auto;}
+  .section-head{max-width:640px;margin-bottom:var(--sp-9);}
+  .section-head.center{margin-left:auto;margin-right:auto;text-align:center;}
+  .kicker{font-family:'JetBrains Mono',monospace;font-size:12px;letter-spacing:0.08em;text-transform:uppercase;color:var(--pink);margin-bottom:var(--sp-3);display:block;}
+  h2{font-size:38px;font-weight:600;letter-spacing:-0.01em;line-height:1.15;}
+  h2 .grad-text{background:var(--grad);-webkit-background-clip:text;background-clip:text;color:transparent;}
+  .lead{margin-top:var(--sp-4);font-size:16px;line-height:1.65;color:var(--text-dim);}
+
+  .stats-strip{display:grid;grid-template-columns:repeat(4,1fr);border:1px solid var(--line);border-radius:var(--r-lg);overflow:hidden;background:var(--panel);}
+  .stat{padding:var(--sp-8) var(--sp-6);border-right:1px solid var(--line);}
+  .stat:last-child{border-right:none;}
+  .stat-num{font-family:'JetBrains Mono',monospace;font-size:34px;font-weight:600;background:var(--grad);-webkit-background-clip:text;background-clip:text;color:transparent;}
+  .stat-label{margin-top:var(--sp-2);font-size:13px;color:var(--text-dim);line-height:1.5;}
+
+  .steps{display:grid;grid-template-columns:repeat(3,1fr);gap:var(--sp-6);}
+  .step-card{background:var(--panel);border:1px solid var(--line);border-radius:var(--r-lg);padding:var(--sp-7);position:relative;transition:border-color .2s ease,transform .2s ease;}
+  .step-card:hover{border-color:#33344a;transform:translateY(-2px);}
+  .step-num{font-family:'JetBrains Mono',monospace;font-size:13px;color:var(--cyan);border:1px solid rgba(34,211,238,0.3);background:rgba(34,211,238,0.06);width:32px;height:32px;border-radius:var(--r-sm);display:flex;align-items:center;justify-content:center;margin-bottom:var(--sp-6);}
+  .step-card h3{font-size:18px;font-weight:600;margin-bottom:var(--sp-3);}
+  .step-card p{font-size:14.5px;color:var(--text-dim);line-height:1.6;}
+
+  .playground-panel{background:var(--panel);border:1px solid var(--line);border-radius:var(--r-lg);overflow:hidden;}
+  .pg-controls{padding:var(--sp-7);border-bottom:1px solid var(--line);display:flex;gap:var(--sp-4);flex-wrap:wrap;align-items:flex-end;}
+  .field{display:flex;flex-direction:column;gap:var(--sp-2);flex:1;min-width:220px;}
+  .field label{font-size:12.5px;font-weight:600;color:var(--text-dim);}
+  .field input[type=text],.field select,.field input[type=email],.field textarea{background:#0a0a12;border:1px solid var(--line);border-radius:var(--r-sm);color:var(--text);padding:var(--sp-3) var(--sp-4);font-size:14.5px;font-family:'JetBrains Mono',monospace;outline:none;transition:border-color .15s ease;}
+  .field input:focus,.field select:focus,.field textarea:focus{border-color:var(--cyan);}
+  .field-note{font-size:12px;color:var(--text-dim);}
+  .pg-status{padding:0 var(--sp-7) var(--sp-5);font-family:'JetBrains Mono',monospace;font-size:12.5px;min-height:18px;}
+  .pg-status.ok{color:var(--green);}
+  .pg-status.err{color:var(--red);}
+  .pg-status.exp{color:#f9a55a;}
+
+  .template-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:var(--sp-5);}
+  .t-card{background:var(--panel);border:1px solid var(--line);border-radius:var(--r-md);padding:var(--sp-5);display:flex;flex-direction:column;gap:var(--sp-3);cursor:pointer;transition:border-color .15s ease,transform .15s ease;}
+  .t-card:hover{border-color:var(--purple);transform:translateY(-2px);}
+  .t-top{display:flex;justify-content:space-between;align-items:flex-start;gap:var(--sp-3);}
+  .t-name{font-size:14.5px;font-weight:600;}
+  .t-cat{font-size:11px;color:var(--text-dim);text-transform:uppercase;letter-spacing:0.05em;margin-top:2px;}
+  .badge{font-family:'JetBrains Mono',monospace;font-size:10.5px;font-weight:600;padding:3px var(--sp-2);border-radius:999px;background:rgba(74,222,128,0.1);color:var(--green);border:1px solid rgba(74,222,128,0.25);white-space:nowrap;display:flex;align-items:center;gap:4px;}
+  .badge .dot{background:var(--green);box-shadow:0 0 6px var(--green);}
+  .t-expr{font-family:'JetBrains Mono',monospace;font-size:13.5px;color:var(--cyan);background:#0a0a12;border:1px solid var(--line);border-radius:6px;padding:var(--sp-2) var(--sp-3);}
+  .t-preview-btn{font-size:12.5px;font-weight:600;color:var(--text-dim);display:flex;align-items:center;gap:6px;}
+  .t-card:hover .t-preview-btn{color:var(--pink);}
+
+  .toggle-row{display:flex;align-items:center;justify-content:center;gap:var(--sp-4);margin-bottom:var(--sp-9);}
+  .toggle-row span{font-size:14px;font-weight:600;color:var(--text-dim);}
+  .toggle-row span.active{color:var(--text);}
+  .switch{position:relative;width:46px;height:26px;border-radius:999px;background:#22222f;border:1px solid var(--line);cursor:pointer;flex-shrink:0;}
+  .switch .knob{position:absolute;top:2px;left:2px;width:20px;height:20px;border-radius:50%;background:var(--grad);transition:transform .2s ease;}
+  .switch.on .knob{transform:translateX(20px);}
+  .save-chip{font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--green);background:rgba(74,222,128,0.08);border:1px solid rgba(74,222,128,0.25);padding:2px 8px;border-radius:999px;}
+
+  .price-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:var(--sp-6);align-items:stretch;}
+  .price-card{background:var(--panel);border:1px solid var(--line);border-radius:var(--r-lg);padding:var(--sp-7);display:flex;flex-direction:column;transition:border-color .2s ease,transform .2s ease;}
+  .price-card.featured{border-color:var(--purple);position:relative;background:linear-gradient(180deg,rgba(139,92,246,0.08),var(--panel) 40%);}
+  .price-card:hover{transform:translateY(-3px);}
+  .featured-tag{position:absolute;top:-13px;left:var(--sp-7);background:var(--grad);color:#0a0a0f;font-size:11px;font-weight:700;padding:4px 10px;border-radius:999px;}
+  .price-name{font-size:15px;font-weight:700;}
+  .price-desc{font-size:13px;color:var(--text-dim);margin-top:var(--sp-2);min-height:34px;}
+  .price-amount{margin-top:var(--sp-6);display:flex;align-items:baseline;gap:6px;}
+  .price-amount .num{font-family:'JetBrains Mono',monospace;font-size:38px;font-weight:600;}
+  .price-amount .per{font-size:13px;color:var(--text-dim);}
+  .price-feats{list-style:none;margin:var(--sp-6) 0 var(--sp-7);display:flex;flex-direction:column;gap:var(--sp-3);flex:1;}
+  .price-feats li{font-size:13.5px;color:#d5d5dd;display:flex;gap:var(--sp-3);align-items:flex-start;line-height:1.5;}
+  .check{width:16px;height:16px;flex-shrink:0;color:var(--green);margin-top:2px;}
+
+  .about-grid{display:grid;grid-template-columns:1.1fr 0.9fr;gap:var(--sp-10);align-items:start;}
+  .about-copy p{font-size:15.5px;line-height:1.75;color:#d5d5dd;margin-bottom:var(--sp-5);}
+  .about-copy p:last-child{margin-bottom:0;}
+  .about-copy strong{color:var(--text);font-weight:600;}
+  .founder-strip{display:flex;gap:var(--sp-4);margin-top:var(--sp-7);}
+  .avatar{width:40px;height:40px;border-radius:50%;background:var(--grad);flex-shrink:0;}
+  .about-side{display:flex;flex-direction:column;gap:var(--sp-5);}
+  .raise-card{background:var(--panel);border:1px solid var(--purple);border-radius:var(--r-lg);padding:var(--sp-7);box-shadow:0 20px 60px -25px rgba(139,92,246,0.4);}
+  .raise-card .kicker{color:var(--cyan);}
+  .raise-card h3{font-size:20px;font-weight:600;margin-bottom:var(--sp-3);}
+  .raise-card p{font-size:14px;color:var(--text-dim);line-height:1.65;margin-bottom:var(--sp-6);}
+  .scale-card{background:var(--bg-soft);border:1px solid var(--line);border-radius:var(--r-lg);padding:var(--sp-7);}
+  .scale-card h3{font-size:16px;font-weight:600;margin-bottom:var(--sp-4);}
+  .scale-list{list-style:none;display:flex;flex-direction:column;gap:var(--sp-4);}
+  .scale-list li{display:flex;justify-content:space-between;gap:var(--sp-4);font-size:13.5px;border-bottom:1px dashed var(--line);padding-bottom:var(--sp-3);}
+  .scale-list li:last-child{border-bottom:none;padding-bottom:0;}
+  .scale-list .k{color:var(--text-dim);}
+  .scale-list .v{font-family:'JetBrains Mono',monospace;color:var(--text);text-align:right;}
+  .founder-line{font-size:14px;color:var(--text-dim);margin-top:var(--sp-4);}
+  .founder-line strong{color:var(--text);}
+  .problem-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:var(--sp-4);margin:var(--sp-8) 0 var(--sp-5);}
+  .problem-item{border:1px solid var(--line);border-radius:var(--r-md);padding:var(--sp-5);background:var(--panel);}
+  .problem-item h4{font-size:14px;font-weight:600;margin-bottom:var(--sp-2);}
+  .problem-item p{font-size:12.5px;color:var(--text-dim);line-height:1.55;}
+  .callout-bar{display:flex;gap:var(--sp-3);align-items:flex-start;background:var(--panel-2);border:1px solid var(--line);border-radius:var(--r-md);padding:var(--sp-5) var(--sp-6);font-size:14px;color:#e2e2e8;margin-bottom:var(--sp-9);}
+  .callout-bar .mark{color:var(--pink);flex-shrink:0;}
+  .why-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:var(--sp-4);margin-top:var(--sp-7);}
+  .why-card{background:var(--bg-soft);border:1px solid var(--line);border-radius:var(--r-md);padding:var(--sp-5);}
+  .why-card .why-icon{width:32px;height:32px;border-radius:var(--r-sm);background:rgba(139,92,246,0.12);border:1px solid rgba(139,92,246,0.3);display:flex;align-items:center;justify-content:center;margin-bottom:var(--sp-4);font-size:15px;}
+  .why-card h4{font-size:13.5px;font-weight:600;margin-bottom:var(--sp-2);}
+  .why-card p{font-size:12.5px;color:var(--text-dim);line-height:1.55;}
+  .roadmap-card{background:var(--bg-soft);border:1px solid var(--line);border-radius:var(--r-lg);padding:var(--sp-7);}
+  .roadmap-card h3{font-size:16px;font-weight:600;margin-bottom:var(--sp-5);}
+  .roadmap-list{list-style:none;display:flex;flex-direction:column;}
+  .roadmap-item{display:flex;gap:var(--sp-4);padding:var(--sp-3) 0;border-top:1px dashed var(--line);align-items:baseline;}
+  .roadmap-item:first-child{border-top:none;}
+  .roadmap-item .rnum{font-family:'JetBrains Mono',monospace;font-size:11.5px;color:var(--cyan);flex-shrink:0;width:22px;}
+  .roadmap-item .rtext{font-size:13.5px;}
+  .roadmap-item .rtag{margin-left:auto;font-family:'JetBrains Mono',monospace;font-size:10.5px;color:var(--text-dim);}
+  .compare-wrap{background:var(--panel);border:1px solid var(--line);border-radius:var(--r-lg);padding:var(--sp-7);overflow-x:auto;margin-top:var(--sp-9);}
+  .compare-wrap h3{font-size:18px;font-weight:600;margin-bottom:var(--sp-2);}
+  .compare-wrap>p{font-size:13.5px;color:var(--text-dim);margin-bottom:var(--sp-6);}
+  table.compare-table{width:100%;border-collapse:collapse;min-width:640px;}
+  .compare-table th{text-align:left;font-size:11.5px;text-transform:uppercase;letter-spacing:0.04em;color:var(--text-dim);padding:var(--sp-3) var(--sp-4);border-bottom:1px solid var(--line);}
+  .compare-table td{padding:var(--sp-4);border-bottom:1px solid var(--line);font-size:13.5px;}
+  .compare-table tr:last-child td{border-bottom:none;}
+  .compare-table tr.us td{background:rgba(139,92,246,0.06);font-weight:600;}
+  .yes{color:var(--green);}.no{color:var(--red);}.mid{color:#f9a55a;}
+  .revenue-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:var(--sp-4);margin-top:var(--sp-7);}
+  .revenue-card{border:1px solid var(--line);border-radius:var(--r-md);padding:var(--sp-5);background:var(--bg-soft);}
+  .revenue-card .rev-icon{font-size:18px;margin-bottom:var(--sp-3);}
+  .revenue-card h4{font-size:13.5px;font-weight:600;margin-bottom:var(--sp-2);}
+  .revenue-card p{font-size:12px;color:var(--text-dim);line-height:1.5;}
+  .vision-bar{margin-top:var(--sp-9);border-left:3px solid var(--purple);padding:var(--sp-2) 0 var(--sp-2) var(--sp-6);}
+  .vision-bar p{font-size:15px;color:#d5d5dd;line-height:1.7;}
+  .vision-bar .tagline{margin-top:var(--sp-4);font-size:19px;font-weight:600;color:var(--text);}
+
+  .faq-list{display:flex;flex-direction:column;gap:var(--sp-3);max-width:820px;}
+  details{background:var(--panel);border:1px solid var(--line);border-radius:var(--r-md);padding:var(--sp-5) var(--sp-6);}
+  details[open]{border-color:#33344a;}
+  summary{cursor:pointer;list-style:none;display:flex;justify-content:space-between;align-items:center;gap:var(--sp-4);font-size:15px;font-weight:600;}
+  summary::-webkit-details-marker{display:none;}
+  .faq-icon{width:20px;height:20px;flex-shrink:0;color:var(--text-dim);transition:transform .2s ease;}
+  details[open] .faq-icon{transform:rotate(45deg);color:var(--pink);}
+  .faq-answer{margin-top:var(--sp-4);font-size:14px;color:var(--text-dim);line-height:1.7;}
+
+  .contact-grid{display:grid;grid-template-columns:0.85fr 1.15fr;gap:var(--sp-10);}
+  .contact-info h2{margin-bottom:var(--sp-4);}
+  .contact-list{list-style:none;margin-top:var(--sp-7);display:flex;flex-direction:column;gap:var(--sp-5);}
+  .contact-list li{display:flex;gap:var(--sp-4);align-items:flex-start;}
+  .c-icon{width:36px;height:36px;border-radius:var(--r-sm);background:var(--panel);border:1px solid var(--line);display:flex;align-items:center;justify-content:center;flex-shrink:0;}
+  .contact-list .t1{font-size:14px;font-weight:600;}
+  .contact-list .t2{font-size:13px;color:var(--text-dim);margin-top:2px;}
+  .contact-form{background:var(--panel);border:1px solid var(--line);border-radius:var(--r-lg);padding:var(--sp-7);}
+  .form-row{display:grid;grid-template-columns:1fr 1fr;gap:var(--sp-4);}
+  .field textarea{resize:vertical;min-height:100px;font-family:'Inter',sans-serif;}
+  .field-error{font-size:12px;color:var(--red);min-height:16px;}
+  .success-panel{display:none;text-align:center;padding:var(--sp-9) var(--sp-5);}
+  .success-panel .check-big{width:52px;height:52px;color:var(--green);margin:0 auto var(--sp-5);}
+  .success-panel h3{font-size:19px;margin-bottom:var(--sp-3);}
+  .success-panel p{font-size:14px;color:var(--text-dim);margin-bottom:var(--sp-6);}
+
+  footer{border-top:1px solid var(--line);padding:var(--sp-10) var(--sp-9) var(--sp-7);background:var(--bg-soft);}
+  .footer-top{display:grid;grid-template-columns:1.4fr repeat(3,1fr);gap:var(--sp-9);padding-bottom:var(--sp-9);}
+  .footer-brand .logo{margin-bottom:var(--sp-4);}
+  .footer-brand p{font-size:13.5px;color:var(--text-dim);line-height:1.6;max-width:280px;margin-bottom:var(--sp-6);}
+  .footer-news{display:flex;gap:var(--sp-2);max-width:280px;}
+  .footer-news input{flex:1;background:#0a0a12;border:1px solid var(--line);border-radius:var(--r-sm);padding:var(--sp-3);color:var(--text);font-size:13px;outline:none;}
+  .footer-news input:focus{border-color:var(--cyan);}
+  .fcol h4{font-size:12.5px;text-transform:uppercase;letter-spacing:0.06em;color:var(--text-dim);margin-bottom:var(--sp-5);}
+  .fcol ul{list-style:none;display:flex;flex-direction:column;gap:var(--sp-3);}
+  .fcol a,.fcol button{font-size:14px;color:#d5d5dd;text-align:left;}
+  .fcol a:hover,.fcol button:hover{color:var(--text);}
+  .footer-bottom{border-top:1px solid var(--line);padding-top:var(--sp-6);display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:var(--sp-4);}
+  .footer-bottom p{font-size:12.5px;color:var(--text-dim);}
+  .social-row{display:flex;gap:var(--sp-4);}
+  .social-row button{width:34px;height:34px;border-radius:50%;border:1px solid var(--line);display:flex;align-items:center;justify-content:center;color:var(--text-dim);}
+  .social-row button:hover{color:var(--text);border-color:#45465f;}
+
+  .toast{position:fixed;bottom:var(--sp-7);left:50%;transform:translateX(-50%) translateY(20px);background:var(--text);color:#0a0a0f;padding:var(--sp-4) var(--sp-6);border-radius:var(--r-sm);font-size:13.5px;font-weight:600;box-shadow:0 20px 40px -10px rgba(0,0,0,0.6);z-index:200;opacity:0;pointer-events:none;transition:opacity .25s ease,transform .25s ease;}
+  .toast.show{opacity:1;transform:translateX(-50%) translateY(0);}
+
+  @media(max-width:980px){
+    .hero{flex-direction:column;padding:var(--sp-7) var(--sp-6) var(--sp-11);gap:var(--sp-7);}
+    h1{font-size:40px;}
+    .nav-links{display:none;position:absolute;top:100%;left:0;right:0;flex-direction:column;gap:0;background:var(--bg-soft);border-bottom:1px solid var(--line);padding:var(--sp-4) var(--sp-6);}
+    .nav-links.open{display:flex;}
+    .nav-links a{padding:var(--sp-4) 0;border-bottom:1px solid var(--line);}
+    .nav-links a:last-child{border-bottom:none;}
+    .nav-right .btn-ghost{display:none;}
+    .hamburger{display:flex;}
+    .float-card{position:static;margin-top:var(--sp-7);max-width:100%;}
+    nav{padding:var(--sp-5) var(--sp-6);}
+    .section{padding:var(--sp-10) var(--sp-6);}
+    .stats-strip{grid-template-columns:repeat(2,1fr);}
+    .stat{border-bottom:1px solid var(--line);}
+    .steps{grid-template-columns:1fr;}
+    .price-grid{grid-template-columns:1fr;}
+    .about-grid,.contact-grid{grid-template-columns:1fr;}
+    .footer-top{grid-template-columns:1fr 1fr;}
+    .form-row{grid-template-columns:1fr;}
+    h2{font-size:30px;}
+    .problem-grid{grid-template-columns:repeat(2,1fr);}
+    .why-grid{grid-template-columns:1fr;}
+    .revenue-grid{grid-template-columns:repeat(2,1fr);}
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <div class="announce">
+    🎬 Numera is raising its seed round to grow past 19 equations. <button id="announceLink">Talk to us</button>
+  </div>
+
+  <nav id="mainNav">
+    <button class="logo" id="logoHome" aria-label="Numera home">
+      <img src="static/images/numera-logo.png" alt="Numera" class="logo-img">
+    </button>
+    <div class="nav-links" id="navLinks">
+      <a href="#platform">Platform</a>
+      <a href="#pricing">Pricing</a>
+      <a href="#templates">Templates</a>
+      <a href="#faq">Docs</a>
+      <a href="#about">Company</a>
+    </div>
+    <div class="nav-right">
+      <button class="btn btn-ghost" onclick="location.href=NUMERA_APP_URL+'/app'">Playground <svg class="arrow" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="7" y1="17" x2="17" y2="7"/><polyline points="7 7 17 7 17 17"/></svg></button>
+      <button class="btn btn-solid" onclick="location.href=NUMERA_APP_URL+'/signup'">Get Started <svg class="arrow" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="7" y1="17" x2="17" y2="7"/><polyline points="7 7 17 7 17 17"/></svg></button>
+      <button class="hamburger" id="hamburger" aria-label="Menu"><span></span></button>
+    </div>
+  </nav>
+
+  <div class="hero">
+    <div class="hero-copy">
+      <div class="eyebrow"><span class="dot"></span> POWERED BY MANIM</div>
+      <h1>See the proof.<br>Know the <span class="grad-text">motion.</span></h1>
+      <p class="sub">Every equation hides a story — a curve bending, a limit closing in, a shape unfolding step by step. Writing the <code>manim</code> code to show it has always taken hours. Until now.</p>
+      <div class="cta-row">
+        <button class="btn btn-grad" onclick="location.href=NUMERA_APP_URL+'/app'">Try the App <svg class="arrow" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="7" y1="17" x2="17" y2="7"/><polyline points="7 7 17 7 17 17"/></svg></button>
+        <button class="btn btn-ghost" data-scroll="#contact">Talk to Sales <svg class="arrow" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="7" y1="17" x2="17" y2="7"/><polyline points="7 7 17 7 17 17"/></svg></button>
+      </div>
+    </div>
+    <div class="hero-visual">
+      <div class="stage">
+        <div class="stage-head">
+          <span>f(x) — Untitled Project</span>
+          <span class="flag"><span class="dot"></span>rendering</span>
+        </div>
+        <div class="eq-line"><span id="heroEqKatex"></span><span class="cursor"></span></div>
+        <div class="graph-box">
+          <svg viewBox="0 0 480 220" width="100%" height="220" xmlns="http://www.w3.org/2000/svg">
+            <line x1="20" y1="180" x2="460" y2="180" stroke="#22232f" stroke-width="1"/>
+            <line x1="240" y1="20" x2="240" y2="200" stroke="#22232f" stroke-width="1"/>
+            <path d="M 60 40 Q 240 260 420 40" fill="none" stroke="var(--cyan)" stroke-width="3" stroke-linecap="round" stroke-dasharray="620" stroke-dashoffset="620">
+              <animate attributeName="stroke-dashoffset" from="620" to="0" dur="2.4s" repeatCount="indefinite"/>
+            </path>
+            <circle r="5" fill="#ec4899">
+              <animateMotion dur="2.4s" repeatCount="indefinite" path="M 60 40 Q 240 260 420 40"/>
+            </circle>
+          </svg>
+        </div>
+        <div class="render-bar" onclick="location.href=NUMERA_APP_URL+'/app'">▶ Generate Manim Animation</div>
+      </div>
+    </div>
+    <div class="float-card">
+      <div class="float-icon">✦</div>
+      <div>
+        <div class="t1">New template, every week</div>
+        <div class="t2">Get a fresh Manim scene — Fourier series, Taylor expansion, proofs — dropped in your inbox.</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- STATS -->
+<div class="section" style="padding-top:var(--sp-9);padding-bottom:var(--sp-9);">
+  <div class="section-inner">
+    <div class="stats-strip">
+      <div class="stat"><div class="stat-num">19</div><div class="stat-label">equations trained and live in the library today</div></div>
+      <div class="stat"><div class="stat-num">~3</div><div class="stat-label">people on the team, building with AI tools instead of a big eng org</div></div>
+      <div class="stat"><div class="stat-num">0</div><div class="stat-label">lines of Manim you have to write yourself</div></div>
+      <div class="stat"><div class="stat-num">SEED</div><div class="stat-label">the round we're currently raising — see Company below</div></div>
+    </div>
+  </div>
+</div>
+
+<!-- PLATFORM -->
+<section class="section" id="platform">
+  <div class="section-inner">
+    <div class="section-head">
+      <span class="kicker">Platform</span>
+      <h2>From typed equation to <span class="grad-text">rendered scene.</span></h2>
+      <p class="lead">Numera reads what you type, decides how it should look in motion, and writes the Manim scene for you — no animation experience required.</p>
+    </div>
+    <div class="steps">
+      <div class="step-card"><div class="step-num">1</div><h3>Type your equation</h3><p>Drop in anything from a linear function to a Taylor expansion. Plain text, no special syntax to learn — <code style="font-family:'JetBrains Mono',monospace;color:var(--cyan);">x^2 - 4x + 3</code> works exactly like it looks.</p></div>
+      <div class="step-card"><div class="step-num">2</div><h3>Numera picks the visual</h3><p>The model matches your equation to a visual structure — a curve, a rotating vector, a shaded region — and writes the underlying Manim scene automatically.</p></div>
+      <div class="step-card"><div class="step-num">3</div><h3>Watch it render</h3><p>Preview the animation right in your browser, then export it or drop it into a lecture, a video, or a problem set.</p></div>
+    </div>
+  </div>
+</section>
+
+<!-- PLAYGROUND (demo, redirects to real app) -->
+<section class="section section-soft" id="playground">
+  <div class="section-inner">
+    <div class="section-head">
+      <span class="kicker">Playground</span>
+      <h2>Try it yourself.</h2>
+      <p class="lead">We've trained Numera on 19 equations so far. Pick one below, or type your own — the grapher will plot anything it can parse.</p>
+    </div>
+    <div class="playground-panel">
+      <div class="pg-controls">
+        <div class="field" style="flex:2;">
+          <label for="pgInput">Equation, in terms of x</label>
+          <input type="text" id="pgInput" value="x^2 - 4x + 3" placeholder="e.g. sin(x) or x^3 - 3x">
+        </div>
+        <div class="field">
+          <label for="pgPreset">Or pick a trained equation</label>
+          <select id="pgPreset"><option value="">— choose —</option></select>
+        </div>
+        <button class="btn btn-grad" id="pgGenerate">Generate Animation <svg class="arrow" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="7" y1="17" x2="17" y2="7"/><polyline points="7 7 17 7 17 17"/></svg></button>
+      </div>
+      <div class="pg-status" id="pgStatus"></div>
+      <div style="padding:0 var(--sp-6) var(--sp-6);">
+        <div class="stage" style="max-width:none;">
+          <div class="stage-head">
+            <span id="pgTitle">f(x) — Untitled Project</span>
+            <span class="flag" id="pgFlag"><span class="dot"></span>rendering</span>
+          </div>
+          <div class="eq-line" id="pgEqLine"><span id="pgEqKatex"></span></div>
+          <div class="graph-box">
+            <svg viewBox="0 0 480 220" width="100%" height="220" xmlns="http://www.w3.org/2000/svg" id="pgSvg">
+              <line x1="20" y1="180" x2="460" y2="180" stroke="#22232f" stroke-width="1"/>
+              <line x1="240" y1="20" x2="240" y2="200" stroke="#22232f" stroke-width="1"/>
+            </svg>
+          </div>
+          <div class="render-bar" id="pgRenderBar" onclick="goToApp()">▶ Generate Manim Animation</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- TEMPLATES -->
+<section class="section" id="templates">
+  <div class="section-inner">
+    <div class="section-head">
+      <span class="kicker">Templates</span>
+      <h2>The library so far.</h2>
+      <p class="lead">19 equations, hand-trained and live. Click any card to try it in the full app.</p>
+    </div>
+    <div class="template-grid" id="templateGrid"></div>
+  </div>
+</section>
+
+<!-- PRICING -->
+<section class="section section-soft" id="pricing">
+  <div class="section-inner">
+    <div class="section-head center">
+      <span class="kicker">Pricing</span>
+      <h2>Simple pricing while we're in beta.</h2>
+      <p class="lead">Start free. Upgrade when you're making animations every week.</p>
+    </div>
+    <div class="toggle-row">
+      <span id="labelMonthly" class="active">Monthly</span>
+      <div class="switch" id="billingSwitch" role="switch" aria-checked="false"><div class="knob"></div></div>
+      <span id="labelAnnual">Annual</span>
+      <span class="save-chip">save ~20%</span>
+    </div>
+    <div class="price-grid">
+      <div class="price-card">
+        <div class="price-name">Explorer</div>
+        <div class="price-desc">For individual learners poking around.</div>
+        <div class="price-amount"><span class="num">$0</span><span class="per">/mo</span></div>
+        <ul class="price-feats">
+          <li><svg class="check" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"/></svg>5 renders / month</li>
+          <li><svg class="check" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"/></svg>Full 19-equation template library</li>
+          <li><svg class="check" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"/></svg>720p export</li>
+          <li><svg class="check" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"/></svg>Community Discord</li>
+        </ul>
+        <button class="btn btn-ghost btn-block" onclick="location.href=NUMERA_APP_URL+'/signup'">Get started</button>
+      </div>
+      <div class="price-card featured">
+        <div class="featured-tag">Most popular</div>
+        <div class="price-name">Creator</div>
+        <div class="price-desc">For tutors and math content creators.</div>
+        <div class="price-amount"><span class="num" data-monthly="19" data-annual="15">$19</span><span class="per">/mo</span></div>
+        <ul class="price-feats">
+          <li><svg class="check" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"/></svg>Unlimited renders</li>
+          <li><svg class="check" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"/></svg>1080p HD export</li>
+          <li><svg class="check" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"/></svg>Priority render queue</li>
+          <li><svg class="check" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"/></svg>Custom equation requests</li>
+        </ul>
+        <button class="btn btn-grad btn-block" onclick="location.href=NUMERA_APP_URL+'/signup'">Get started</button>
+      </div>
+      <div class="price-card">
+        <div class="price-name">Classroom</div>
+        <div class="price-desc">For teachers and small schools.</div>
+        <div class="price-amount"><span class="num" data-monthly="49" data-annual="39">$49</span><span class="per">/mo</span></div>
+        <ul class="price-feats">
+          <li><svg class="check" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"/></svg>Everything in Creator</li>
+          <li><svg class="check" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"/></svg>Up to 10 seats</li>
+          <li><svg class="check" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"/></svg>Shareable classroom links</li>
+          <li><svg class="check" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"/></svg>Priority support</li>
+        </ul>
+        <button class="btn btn-ghost btn-block" data-scroll="#contact">Talk to Sales</button>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ABOUT -->
+<section class="section" id="about">
+  <div class="section-inner">
+    <div class="section-head">
+      <span class="kicker">Company · Seed / Pre-Seed</span>
+      <h2>About Numera</h2>
+      <p class="lead">"Don't just solve math. See it." Founded by <strong>Mubashir Shah</strong>.</p>
+    </div>
+    <div class="problem-grid">
+      <div class="problem-item"><h4>Static textbook diagrams</h4><p>Fixed, non-interactive visuals that can't adapt to how a given student thinks.</p></div>
+      <div class="problem-item"><h4>Long lecture videos</h4><p>Passive content that doesn't respond to individual confusion or pace.</p></div>
+      <div class="problem-item"><h4>Symbol-heavy equations</h4><p>Abstract notation without visual grounding leaves students lost.</p></div>
+      <div class="problem-item"><h4>One-size-fits-all explanations</h4><p>Generic teaching that ignores how each student actually learns.</p></div>
+    </div>
+    <div class="callout-bar"><span class="mark">❝</span><span>Every year, millions of students learn mathematics by <strong>memorizing procedures</strong> instead of building intuition — understanding, not memorization, is the missing layer in STEM education.</span></div>
+    <div class="about-grid">
+      <div class="about-copy">
+        <p><strong>We're a new startup</strong> — small team, early product, and honest about both. Numera started from a simple annoyance: the best way to actually understand an equation is to watch it move, but building that animation by hand in Manim takes hours even for someone who knows the library well. So we're teaching a model to do it instead.</p>
+        <p>Today Numera has been trained on <strong>19 equations</strong>, spanning algebra, trigonometry, calculus, and a few things further out — enough to prove the core idea works: type a formula, get back a scene, no code required.</p>
+        <p><strong>We're currently raising our seed round</strong> to take Numera from a 19-equation prototype to a model that can visualize almost anything a student, tutor, or teacher throws at it.</p>
+        <div class="why-grid">
+          <div class="why-card"><div class="why-icon">🧠</div><h4>AI reasoning</h4><p>Large language models can now deeply understand mathematical concepts, not just symbol-shuffle them.</p></div>
+          <div class="why-card"><div class="why-icon">🎬</div><h4>Generative graphics</h4><p>Modern animation engines like Manim can produce educational visuals on demand, in real time.</p></div>
+          <div class="why-card"><div class="why-icon">🎯</div><h4>Personalized learning</h4><p>Students increasingly expect tutors that adapt to their own pace and style, not a fixed curriculum.</p></div>
+        </div>
+        <p class="founder-line">Numera is the first platform we're aware of that brings all three together — <strong>see it, don't just solve it.</strong></p>
+        <div class="founder-strip"><div class="avatar"></div><div class="avatar" style="margin-left:-12px;"></div><div class="avatar" style="margin-left:-12px;"></div></div>
+      </div>
+      <div class="about-side">
+        <div class="raise-card">
+          <span class="kicker">Fundraising</span>
+          <h3>We're raising our seed round.</h3>
+          <p>If you're an investor, an angel who cares about math education, or someone who's built EdTech before, we'd like ten minutes of your time.</p>
+          <button class="btn btn-grad btn-block" data-scroll="#contact">Talk to us about investing</button>
+        </div>
+        <div class="scale-card">
+          <h3>Who Numera is for</h3>
+          <ul class="scale-list">
+            <li><span class="k">Core learners</span><span class="v">HS &amp; university STEM, SAT/AP/IB/A-Level</span></li>
+            <li><span class="k">Educators</span><span class="v">tutors, teachers, institutions</span></li>
+            <li><span class="k">Expansion markets</span><span class="v">engineering, data science, certs</span></li>
+            <li><span class="k">Equations trained today</span><span class="v">19</span></li>
+          </ul>
+        </div>
+        <div class="roadmap-card">
+          <h3>Roadmap</h3>
+          <ul class="roadmap-list">
+            <li class="roadmap-item"><span class="rnum">01</span><span class="rtext">Calculus &amp; Linear Algebra</span><span class="rtag">next</span></li>
+            <li class="roadmap-item"><span class="rnum">02</span><span class="rtext">Geometry &amp; Statistics</span></li>
+            <li class="roadmap-item"><span class="rnum">03</span><span class="rtext">Physics &amp; Chemistry</span></li>
+            <li class="roadmap-item"><span class="rnum">04</span><span class="rtext">Personalized AI tutor</span></li>
+          </ul>
+        </div>
+      </div>
+    </div>
+    <div class="compare-wrap">
+      <h3>How we compare</h3>
+      <p>Our differentiation isn't just solving mathematics — it's generating interactive visual understanding automatically.</p>
+      <table class="compare-table">
+        <thead><tr><th>Platform</th><th>Solves problems</th><th>Interactive visuals</th><th>AI generated</th><th>Personalized</th></tr></thead>
+        <tbody>
+          <tr><td>Khan Academy</td><td class="yes">Yes</td><td class="mid">Limited</td><td class="no">No</td><td class="mid">Partial</td></tr>
+          <tr><td>Wolfram Alpha</td><td class="yes">Yes</td><td class="mid">Limited</td><td class="no">No</td><td class="no">No</td></tr>
+          <tr><td>ChatGPT</td><td class="yes">Yes</td><td class="mid">Minimal</td><td class="mid">Partial</td><td class="mid">Partial</td></tr>
+          <tr><td>Desmos</td><td class="mid">Visual only</td><td class="yes">Yes</td><td class="no">No</td><td class="no">No</td></tr>
+          <tr class="us"><td>Numera</td><td class="yes">Yes</td><td class="yes">Yes</td><td class="yes">Yes</td><td class="yes">Yes</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <div class="revenue-grid">
+      <div class="revenue-card"><div class="rev-icon">🎁</div><h4>Freemium</h4><p>Core visualization features for everyone — drives acquisition and awareness.</p></div>
+      <div class="revenue-card"><div class="rev-icon">⭐</div><h4>Premium subscription</h4><p>Unlimited renders, advanced explanations, and exam-prep tools.</p></div>
+      <div class="revenue-card"><div class="rev-icon">🏛️</div><h4>B2B institutional</h4><p>School licenses, university partnerships, and dashboards for educators.</p></div>
+      <div class="revenue-card"><div class="rev-icon">🔗</div><h4>Platform API</h4><p>API access for EdTech companies integrating Numera's visualization engine.</p></div>
+    </div>
+    <div class="vision-bar">
+      <p>Numera is building the foundational layer of visual mathematical intelligence — a world where every student can see, explore, and truly understand mathematics, not just memorize the steps.</p>
+      <p class="tagline">Don't just solve math. See it.</p>
+    </div>
+  </div>
+</section>
+
+<!-- FAQ -->
+<section class="section section-soft" id="faq">
+  <div class="section-inner">
+    <div class="section-head"><span class="kicker">Docs &amp; FAQ</span><h2>Good to know.</h2></div>
+    <div class="faq-list">
+      <details open><summary>How many equations does Numera actually support right now?<svg class="faq-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg></summary><div class="faq-answer">We've hand-trained and verified 19 equations so far — they're all listed in the Templates section above. Anything outside that set can still be plotted in the Playground, but it's marked as experimental.</div></details>
+      <details><summary>What is Manim, and why does it matter?<svg class="faq-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg></summary><div class="faq-answer">Manim is the animation engine originally built for 3Blue1Brown-style math videos. It produces clean, precise animations, but writing scenes by hand takes real time and Python experience. Numera writes that code for you.</div></details>
+      <details><summary>Can I export and reuse the animations?<svg class="faq-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg></summary><div class="faq-answer">Yes. Free accounts export at 720p, Creator and Classroom plans export at 1080p, and you're free to use the renders in lectures, videos, or coursework.</div></details>
+      <details><summary>Do you have an API?<svg class="faq-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg></summary><div class="faq-answer">Not publicly yet — it's on the roadmap for after our seed round closes. If you want early API access, mention it in the contact form below.</div></details>
+      <details><summary>I'm a teacher. Can I use this in class?<svg class="faq-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg></summary><div class="faq-answer">That's exactly who Classroom is built for — multi-seat access and shareable links for your students. Reach out through the form below and we'll set your school up directly.</div></details>
+    </div>
+  </div>
+</section>
+
+<!-- CONTACT -->
+<section class="section" id="contact">
+  <div class="section-inner">
+    <div class="contact-grid">
+      <div class="contact-info">
+        <span class="kicker">Contact</span>
+        <h2>Let's talk.</h2>
+        <p class="lead">Investor, educator, or just curious about the product — send us a note and we'll get back to you within two business days.</p>
+        <ul class="contact-list">
+          <li><div class="c-icon">✦</div><div><div class="t1">Investors</div><div class="t2">We're actively raising our seed round.</div></div></li>
+          <li><div class="c-icon">🎓</div><div><div class="t1">Educators</div><div class="t2">Ask about Classroom pricing and pilots.</div></div></li>
+          <li><div class="c-icon">✉</div><div><div class="t1">Everyone else</div><div class="t2">Bugs, feature requests, or just say hi.</div></div></li>
+        </ul>
+      </div>
+      <div class="contact-form">
+        <form id="contactForm" novalidate>
+          <div class="form-row">
+            <div class="field"><label for="cName">Name</label><input type="text" id="cName" placeholder="Ada Lovelace"><div class="field-error" id="errName"></div></div>
+            <div class="field"><label for="cEmail">Email</label><input type="email" id="cEmail" placeholder="ada@example.com"><div class="field-error" id="errEmail"></div></div>
+          </div>
+          <div class="field" style="margin-top:var(--sp-4);">
+            <label for="cReason">I'm reaching out about</label>
+            <select id="cReason"><option>Investing / the seed round</option><option>Using Numera in my classroom</option><option>Product feedback</option><option>Something else</option></select>
+          </div>
+          <div class="field" style="margin-top:var(--sp-4);">
+            <label for="cMessage">Message</label>
+            <textarea id="cMessage" placeholder="Tell us a bit about what you're looking for..."></textarea>
+            <div class="field-error" id="errMessage"></div>
+          </div>
+          <button type="submit" class="btn btn-grad btn-block" style="margin-top:var(--sp-6);justify-content:center;padding:var(--sp-4);">Send message</button>
+        </form>
+        <div class="success-panel" id="successPanel">
+          <svg class="check-big" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="8 12 11 15 16 9"/></svg>
+          <h3 id="successName">Thanks — we've got it.</h3>
+          <p>We reply to every message ourselves, usually within two business days.</p>
+          <button class="btn btn-ghost" id="resetForm">Send another message</button>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- FOOTER -->
+<footer>
+  <div class="section-inner footer-top">
+    <div class="footer-brand">
+      <div class="logo"><img src="static/images/numera-logo.png" alt="Numera" class="logo-img"></div>
+      <p>An early-stage startup teaching a model to turn equations into Manim-style animations. 19 equations trained so far, and counting.</p>
+      <form class="footer-news" id="newsForm">
+        <input type="email" id="newsEmail" placeholder="you@example.com" required>
+        <button type="submit" class="btn btn-solid">Join</button>
+      </form>
+      <div class="field-error" id="errNews"></div>
+    </div>
+    <div class="fcol"><h4>Product</h4><ul><li><a href="#platform">Platform</a></li><li><a href="#pricing">Pricing</a></li><li><a href="#templates">Templates</a></li><li><button onclick="location.href=NUMERA_APP_URL+'/app'">Playground</button></li></ul></div>
+    <div class="fcol"><h4>Company</h4><ul><li><a href="#about">About us</a></li><li><a href="#about">We're hiring (soon)</a></li><li><button data-scroll="#contact">Investors</button></li><li><button data-scroll="#contact">Contact</button></li></ul></div>
+    <div class="fcol"><h4>Resources</h4><ul><li><a href="#faq">Docs &amp; FAQ</a></li><li><button data-scroll="#faq">Manim, explained</button></li><li><button data-scroll="#contact">API waitlist</button></li></ul></div>
+  </div>
+  <div class="section-inner footer-bottom">
+    <p>© 2026 Numera, Inc. Built by a small team, with a lot of help from AI tools.</p>
+    <div class="social-row">
+      <button aria-label="X / Twitter">𝕏</button>
+      <button aria-label="GitHub">GH</button>
+      <button aria-label="LinkedIn">in</button>
+    </div>
+  </div>
+</footer>
+
+<div class="toast" id="toast"></div>
+
+<script src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.js"></script>
+<script>
+(function(){
+  "use strict";
+
+  function exprToLatex(raw){
+    var s=' '+raw.trim()+' ';
+    s=s.replace(/sqrt\(([^()]*)\)/g,'\\sqrt{$1}');
+    s=s.replace(/\bsin\b/g,'\\sin');s=s.replace(/\bcos\b/g,'\\cos');s=s.replace(/\btan\b/g,'\\tan');
+    s=s.replace(/\bexp\b/g,'\\exp');s=s.replace(/\blog\b/g,'\\log');
+    s=s.replace(/\^\(([^()]*)\)/g,'^{$1}');s=s.replace(/\^(-?\d+(\.\d+)?)/g,'^{$1}');
+    s=s.replace(/\*/g,'\\cdot ');
+    return 'f(x) = '+s.trim();
+  }
+  function renderKatex(id,raw){
+    var el=document.getElementById(id);
+    if(!el||typeof katex==='undefined') return;
+    try{katex.render(exprToLatex(raw),el,{throwOnError:false,displayMode:false});}
+    catch(e){el.textContent='f(x) = '+raw;}
+  }
+  renderKatex('heroEqKatex','x^2 - 4x + 3');
+
+  var toastEl=document.getElementById('toast'),toastTimer;
+  function toast(msg){toastEl.textContent=msg;toastEl.classList.add('show');clearTimeout(toastTimer);toastTimer=setTimeout(function(){toastEl.classList.remove('show');},2600);}
+
+  document.querySelectorAll('[data-scroll]').forEach(function(btn){
+    btn.addEventListener('click',function(){
+      var t=document.querySelector(btn.getAttribute('data-scroll'));
+      if(t) t.scrollIntoView({behavior:'smooth'});
+      document.getElementById('navLinks').classList.remove('open');
+      document.getElementById('hamburger').classList.remove('open');
+    });
+  });
+  document.getElementById('logoHome').addEventListener('click',function(){window.scrollTo({top:0,behavior:'smooth'});});
+  document.getElementById('announceLink').addEventListener('click',function(){document.querySelector('#contact').scrollIntoView({behavior:'smooth'});});
+
+  var nav=document.getElementById('mainNav');
+  window.addEventListener('scroll',function(){nav.classList.toggle('scrolled',window.scrollY>8);});
+  var hamburger=document.getElementById('hamburger'),navLinks=document.getElementById('navLinks');
+  hamburger.addEventListener('click',function(){hamburger.classList.toggle('open');navLinks.classList.toggle('open');});
+  navLinks.querySelectorAll('a').forEach(function(a){a.addEventListener('click',function(){hamburger.classList.remove('open');navLinks.classList.remove('open');});});
+
+  var EQUATIONS=[
+    {id:'quad',name:'Quadratic Curve',cat:'Algebra',expr:'x^2 - 4x + 3'},
+    {id:'linear',name:'Linear Function',cat:'Algebra',expr:'2x + 1'},
+    {id:'cubic',name:'Cubic Curve',cat:'Algebra',expr:'x^3/8 - 3x'},
+    {id:'sine',name:'Sine Wave',cat:'Trigonometry',expr:'4*sin(x)'},
+    {id:'cosine',name:'Cosine Wave',cat:'Trigonometry',expr:'4*cos(x)'},
+    {id:'tangent',name:'Tangent Line',cat:'Calculus',expr:'x^2/2'},
+    {id:'integral',name:'Area Under Curve',cat:'Calculus',expr:'x^2/3 - 2'},
+    {id:'exp',name:'Exponential Growth',cat:'Functions',expr:'exp(x/4)'},
+    {id:'log',name:'Logarithmic Curve',cat:'Functions',expr:'3*log(x+11)'},
+    {id:'normal',name:'Normal Distribution',cat:'Statistics',expr:'6*exp(-(x*x)/8)'},
+    {id:'sigmoid',name:'Sigmoid',cat:'ML/Stats',expr:'1/(1+exp(-x))'},
+    {id:'fourier',name:'Fourier (square wave)',cat:'Analysis',expr:'sin(x)+sin(3*x)/3+sin(5*x)/5'},
+    {id:'taylor',name:'Taylor (sin approx)',cat:'Calculus',expr:'x - x^3/6 + x^5/120'},
+    {id:'chain',name:'Chain Rule',cat:'Calculus',expr:'sin(x^2/6)'},
+    {id:'euler',name:"Euler's Formula",cat:'Complex',expr:'4*cos(x)'},
+    {id:'pascal',name:'Binomial Expansion',cat:'Combinatorics',expr:'x^2 + 2x + 1'},
+    {id:'vector',name:'Vector Addition',cat:'Linear Algebra',expr:'x + sin(x)'},
+    {id:'limit',name:'Limit 1/x',cat:'Calculus',expr:'6/x'},
+    {id:'quartic',name:'Quartic',cat:'Algebra',expr:'x^4 - 4x^2'}
+  ];
+
+  var preset=document.getElementById('pgPreset');
+  EQUATIONS.forEach(function(eq){var o=document.createElement('option');o.value=eq.id;o.textContent=eq.name+' — '+eq.expr;preset.appendChild(o);});
+
+  var grid=document.getElementById('templateGrid');
+  EQUATIONS.forEach(function(eq){
+    var card=document.createElement('div');card.className='t-card';
+    card.innerHTML='<div class="t-top"><div><div class="t-name">'+eq.name+'</div><div class="t-cat">'+eq.cat+'</div></div><span class="badge"><span class="dot"></span>trained</span></div><div class="t-expr">f(x) = '+eq.expr+'</div><div class="t-preview-btn">▶ Try in app</div>';
+    card.addEventListener('click',function(){location.href=NUMERA_APP_URL+'/app?eq='+encodeURIComponent(eq.expr);});
+    grid.appendChild(card);
+  });
+
+  preset.addEventListener('change',function(){var eq=EQUATIONS.filter(function(e){return e.id===preset.value;})[0];if(eq)document.getElementById('pgInput').value=eq.expr;});
+
+  var pgStatus=document.getElementById('pgStatus'),pgSvg=document.getElementById('pgSvg');
+
+  function compileExpr(raw){
+    var e=raw.trim().replace(/\^/g,'**');
+    if(!/^[0-9x\.\+\-\*\/\(\)\s,a-zA-Z]*$/.test(e)) return null;
+    var words=e.match(/[a-zA-Z]+/g)||[];
+    var allowed=['x','sin','cos','tan','sqrt','abs','exp','log','pow','PI','E','min','max'];
+    for(var i=0;i<words.length;i++){if(allowed.indexOf(words[i])===-1)return null;}
+    try{var fn=new Function('x','with(Math){return('+e+');}');fn(1);return fn;}catch(err){return null;}
+  }
+
+  function plotGraph(){
+    var raw=document.getElementById('pgInput').value;
+    var fn=compileExpr(raw);
+    renderKatex('pgEqKatex',raw);
+    if(!fn){pgStatus.className='pg-status err';pgStatus.textContent='✕ Check your syntax.';return;}
+    var w=480,h=220,pad=20,xMin=-10,xMax=10,samples=[],yMin=Infinity,yMax=-Infinity;
+    for(var i=0;i<=200;i++){var x=xMin+(xMax-xMin)*i/200;var y=fn(x);if(typeof y==='number'&&isFinite(y)){samples.push([x,y]);if(y<yMin)yMin=y;if(y>yMax)yMax=y;}}
+    if(samples.length<2||yMin===yMax){pgStatus.className='pg-status err';pgStatus.textContent='✕ Undefined or flat range.';return;}
+    var yPad=(yMax-yMin)*0.15||1;yMin-=yPad;yMax+=yPad;
+    function mapX(x){return pad+(x-xMin)/(xMax-xMin)*(w-2*pad);}
+    function mapY(y){return h-pad-(y-yMin)/(yMax-yMin)*(h-2*pad);}
+    var d='';samples.forEach(function(p,idx){d+=(idx===0?'M':'L')+' '+mapX(p[0]).toFixed(1)+' '+mapY(p[1]).toFixed(1)+' ';});
+    pgSvg.innerHTML='<line x1="20" y1="'+mapY(0).toFixed(1)+'" x2="460" y2="'+mapY(0).toFixed(1)+'" stroke="#22232f" stroke-width="1"/><line x1="'+mapX(0).toFixed(1)+'" y1="20" x2="'+mapX(0).toFixed(1)+'" y2="200" stroke="#22232f" stroke-width="1"/><path d="'+d+'" fill="none" stroke="var(--cyan)" stroke-width="3" stroke-linecap="round" stroke-dasharray="1400" stroke-dashoffset="1400"><animate attributeName="stroke-dashoffset" from="1400" to="0" dur="1.8s" fill="freeze"/></path><circle r="5" fill="#ec4899"><animateMotion dur="1.8s" repeatCount="indefinite" path="'+d+'"/></circle>';
+    pgStatus.className='pg-status ok';pgStatus.textContent='✓ Plotted — click Generate to create the full animation in the app.';
+  }
+
+  function goToApp(){location.href=NUMERA_APP_URL+'/app?eq='+encodeURIComponent(document.getElementById('pgInput').value);}
+  document.getElementById('pgGenerate').addEventListener('click',function(){plotGraph();setTimeout(goToApp,800);});
+  document.getElementById('pgInput').addEventListener('keydown',function(e){if(e.key==='Enter'){plotGraph();setTimeout(goToApp,800);}});
+  plotGraph();
+
+  /* Pricing toggle */
+  var sw=document.getElementById('billingSwitch'),labelM=document.getElementById('labelMonthly'),labelA=document.getElementById('labelAnnual');
+  var nums=document.querySelectorAll('.price-amount .num[data-monthly]'),pers=document.querySelectorAll('.price-amount .per'),annual=false;
+  sw.addEventListener('click',function(){annual=!annual;sw.classList.toggle('on',annual);sw.setAttribute('aria-checked',annual);labelM.classList.toggle('active',!annual);labelA.classList.toggle('active',annual);nums.forEach(function(n){n.textContent='$'+(annual?n.getAttribute('data-annual'):n.getAttribute('data-monthly'));});pers.forEach(function(p){if(p.previousElementSibling&&p.previousElementSibling.hasAttribute('data-monthly')){p.textContent=annual?'/mo, billed yearly':'/mo';}});});
+
+  /* Contact form */
+  document.getElementById('contactForm').addEventListener('submit',function(e){
+    e.preventDefault();
+    var name=document.getElementById('cName').value.trim();
+    var email=document.getElementById('cEmail').value.trim();
+    var message=document.getElementById('cMessage').value.trim();
+    document.getElementById('errName').textContent='';document.getElementById('errEmail').textContent='';document.getElementById('errMessage').textContent='';
+    var ok=true;
+    if(!name){document.getElementById('errName').textContent='Tell us your name.';ok=false;}
+    if(!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)){document.getElementById('errEmail').textContent='Enter a valid email.';ok=false;}
+    if(!message){document.getElementById('errMessage').textContent='Add a quick message.';ok=false;}
+    if(!ok) return;
+    fetch('/api/contact',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({name:name,email:email,reason:document.getElementById('cReason').value,message:message})});
+    document.getElementById('successName').textContent='Thanks, '+name.split(' ')[0]+' — we\'ve got it.';
+    document.getElementById('contactForm').style.display='none';
+    document.getElementById('successPanel').style.display='block';
+    toast('Message sent — we\'ll be in touch soon.');
+  });
+  document.getElementById('resetForm').addEventListener('click',function(){document.getElementById('contactForm').reset();document.getElementById('contactForm').style.display='block';document.getElementById('successPanel').style.display='none';});
+
+  /* Newsletter */
+  document.getElementById('newsForm').addEventListener('submit',function(e){e.preventDefault();var email=document.getElementById('newsEmail').value.trim();var errNews=document.getElementById('errNews');if(!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)){errNews.textContent='Enter a valid email.';return;}errNews.textContent='';document.getElementById('newsEmail').value='';toast('Subscribed — new templates land in your inbox weekly.');});
+})();
+</script>
+</body>
+</html>
