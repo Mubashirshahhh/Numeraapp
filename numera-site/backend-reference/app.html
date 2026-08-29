@@ -1,0 +1,231 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+  <title>Numera — AI Math Workspace</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com"/>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet"/>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.css"/>
+  <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.js"></script>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/mathquill@0.10.1/build/mathquill.css"/>
+  <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.7.1/jquery.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/mathquill@0.10.1/build/mathquill.min.js"></script>
+  <script src="https://cdn.plot.ly/plotly-2.27.0.min.js"></script>
+  <link rel="stylesheet" href="/static/css/style.css"/>
+</head>
+<body>
+
+<!-- ── STICKY HEADER ── -->
+<header class="site-header">
+  <nav class="navbar">
+    <div class="nav-left">
+      <a href="/" class="logo" style="text-decoration:none;"><img src="/static/images/numera-logo.png" alt="Numera" style="height:42px;width:auto;display:block;"></a>
+      <div class="project-name" contenteditable="true" spellcheck="false">Untitled Project</div>
+      <div class="save-dot" title="Saved"></div>
+    </div>
+    <div class="nav-right">
+      <button class="nbtn" onclick="toggleTheme()">◑ Theme</button>
+      <button class="nbtn primary" onclick="exportVideo()" id="exportBtn" style="display:none">⬇ Export MP4</button>
+      {% if user %}<div class="avatar" title="{{ user.email }}">{{ user.name[0]|upper if user.name else user.email[0]|upper }}</div><a href="/logout" class="nbtn" style="text-decoration:none;font-size:12px;">Sign out</a>{% endif %}
+    </div>
+  </nav>
+
+  <!-- MathQuill Input -->
+  <section class="hero">
+    <div class="hero-inner">
+      <div class="mq-wrap" id="mqWrap">
+        <span class="mq-prefix">f(x) =</span>
+        <span id="mathField" class="mq-field-host"></span>
+        <div class="mq-right">
+          <span class="mq-hint" id="mqHint"></span>
+          <button class="mq-clear" onclick="clearMQ()" title="Clear">✕</button>
+        </div>
+      </div>
+      <div class="mq-placeholder" id="mqPlaceholder">
+        Type a math expression…&nbsp;
+        <span class="ph-examples">
+          <code onclick="insertExample('x^2-4x+3')">x²-4x+3</code>
+          <code onclick="insertExample('\\sin(x)')">sin(x)</code>
+          <code onclick="insertExample('e^{-x^2}')">e^(-x²)</code>
+        </span>
+      </div>
+    </div>
+  </section>
+
+  <!-- Equation Library -->
+  <section class="eq-library">
+    <span class="lib-label">Quick select</span>
+    <div class="lib-cards" id="libCards"></div>
+  </section>
+</header>
+
+<!-- ── SCROLLABLE CONTENT ── -->
+<main class="page-content">
+
+  <!-- Row 1: 3B1B Animation — full width, prominent -->
+  <div class="anim-section">
+
+    <div class="anim-header">
+      <div class="anim-header-left">
+        <span class="panel-title">3B1B Explainer</span>
+        <span class="anim-badge">Manim CE</span>
+        <span class="anim-desc">AI-generated 3Blue1Brown-style animation</span>
+      </div>
+      <div class="anim-header-right">
+        <button class="gen-btn" id="genBtn" onclick="generateAnimation()">
+          <span id="genBtnInner">▶&nbsp; Generate Explainer</span>
+        </button>
+      </div>
+    </div>
+
+    <!-- Progress bar (shown while rendering) -->
+    <div class="render-row" id="renderStatus" style="display:none">
+      <div class="rp-stages">
+        <span class="rp-stage" id="rpStage1">① Math facts</span>
+        <span class="rp-arrow">›</span>
+        <span class="rp-stage" id="rpStage2">② Code gen</span>
+        <span class="rp-arrow">›</span>
+        <span class="rp-stage" id="rpStage3">③ Render</span>
+      </div>
+      <div class="rp-track"><div class="rp-fill" id="rpFill"></div></div>
+      <span class="rp-label" id="rpLabel">Starting…</span>
+    </div>
+
+    <!-- Empty state -->
+    <div class="anim-empty" id="animEmpty">
+      <div class="anim-empty-icon">▶</div>
+      <div class="anim-empty-title">No explainer yet</div>
+      <div class="anim-empty-sub">
+        Type any equation above and click <strong>Generate Explainer</strong>.<br>
+        Numera builds a 3Blue1Brown-style animation with narrated math steps,<br>
+        a live graph, zeros, derivative, and integral — fully rendered by Manim CE.
+      </div>
+      <div class="anim-empty-time">⏱ Typical render time: 30–90 seconds</div>
+    </div>
+
+    <!-- Video player (shown when render complete) -->
+    <div class="video-wrap" id="videoWrap" style="display:none">
+      <video id="videoEl" class="video-player" loop playsinline></video>
+      <div class="video-controls">
+        <button class="play-btn" id="playBtn" onclick="togglePlay()">▶</button>
+        <input type="range" id="videoSlider" class="video-slider" min="0" max="1000" value="0"/>
+        <span class="vtime" id="vtime">0:00 / 0:00</span>
+        <span class="video-meta" id="videoMeta"></span>
+      </div>
+    </div>
+
+  </div><!-- /.anim-section -->
+
+  <!-- Row 2: Graph + Solution side by side -->
+  <div class="top-panels">
+
+    <!-- Graph -->
+    <div class="graph-col">
+      <div class="panel-hd">
+        <span class="panel-title">Graph</span>
+        <div class="graph-tools">
+          <button class="tbtn" onclick="zoomIn()">+</button>
+          <button class="tbtn" onclick="zoomOut()">−</button>
+          <button class="tbtn" onclick="resetView()">⌂</button>
+          <button class="tbtn tog" id="gridBtn" onclick="toggleGrid()">⊞</button>
+          <button class="tbtn" onclick="screenshotGraph()">📷</button>
+        </div>
+      </div>
+      <div class="graph-body">
+        <div id="graphDiv" class="graph-div"></div>
+        <div class="graph-empty" id="graphEmpty">
+          <div class="ge-icon">f(x)</div>
+          <div class="ge-title">Type an equation above</div>
+          <div class="ge-sub">Live graph · SymPy exact computation</div>
+        </div>
+      </div>
+      <div class="props-bar" id="propsBar" style="display:none">
+        <div class="prop-item"><span class="prop-lbl">f(x)</span><span class="prop-val mono" id="propExpr">—</span></div>
+        <div class="prop-sep"></div>
+        <div class="prop-item"><span class="prop-lbl">f′(x)</span><span class="prop-val mono" id="propDeriv">—</span></div>
+        <div class="prop-sep"></div>
+        <div class="prop-item"><span class="prop-lbl">∫f dx</span><span class="prop-val mono" id="propInteg">—</span></div>
+      </div>
+    </div>
+
+    <!-- MathGPT Solution -->
+    <div class="solution-col">
+      <div class="panel-hd">
+        <span class="panel-title">MathGPT Solution</span>
+        <span class="mathgpt-badge">MathGPT</span>
+      </div>
+      <div class="sol-scroll">
+        <div class="sol-empty" id="solEmpty">
+          <div class="sol-icon">✦</div>
+          <p>Type an equation — MathGPT will write a full step-by-step solution in LaTeX.</p>
+        </div>
+        <div class="sol-loading" id="solLoading" style="display:none">
+          <div class="ldots"><span></span><span></span><span></span></div>
+          <p>MathGPT is solving…</p>
+        </div>
+        <div class="sol-content" id="solContent" style="display:none">
+          <div class="sol-meta" id="solMeta"></div>
+          <div class="sol-eq" id="solEq"></div>
+          <div class="steps-list" id="stepsList"></div>
+          <div class="insight-box" id="insightBox" style="display:none">
+            <span class="ins-icon">💡</span>
+            <p id="insightText"></p>
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </div><!-- /.top-panels -->
+
+</main><!-- /.page-content -->
+
+<!-- ── CONSOLE (sticky bottom) ── -->
+<div class="console-bar" id="consoleBar">
+  <div class="console-hd" onclick="toggleConsole()">
+    <div class="console-tabs">
+      <button class="ctab active" onclick="switchTab('logs',event)">Logs</button>
+      <button class="ctab" onclick="switchTab('latex',event)">LaTeX</button>
+      <button class="ctab" onclick="switchTab('errors',event)">Errors</button>
+    </div>
+    <div style="display:flex;align-items:center;gap:8px">
+      <button class="clr-btn" onclick="clearConsole(event)">Clear</button>
+      <span id="consoleArrow">▲</span>
+    </div>
+  </div>
+  <div class="console-body">
+    <div class="cpane active" id="pane-logs"><div class="log-out" id="logOut"></div></div>
+    <div class="cpane" id="pane-latex"><pre class="code-out" id="latexOut">% LaTeX solution appears here after MathGPT analysis</pre></div>
+    <div class="cpane" id="pane-errors"><div class="log-out" id="errOut"></div></div>
+  </div>
+</div>
+
+<!-- ── REASONING TIMELINE OVERLAY ── -->
+<div id="thinkingOverlay" style="display:none;position:fixed;inset:0;z-index:9999;align-items:center;justify-content:center;">
+  <canvas id="tlParticles" class="tl-particles"></canvas>
+  <div class="tl-panel">
+    <div class="tl-top-bar"><div class="tl-top-fill" id="tlTopFill"></div></div>
+    <div class="tl-header">
+      <div class="tl-logo-ring"><img src="/static/images/numera-logo.png" alt="Numera" class="tl-logo-img"></div>
+      <div class="tl-header-mid">
+        <div class="tl-heading">Working for <span class="tl-acc">understanding</span></div>
+        <div class="tl-subheading">AI Reasoning Pipeline <span class="tl-pulse-dots"><span></span><span></span><span></span></span></div>
+      </div>
+      <div class="tl-header-stats">
+        <div class="tl-pct" id="tlPct">0%</div>
+        <div class="tl-eta" id="tlEta">Initialising</div>
+      </div>
+    </div>
+    <div class="tl-divider"></div>
+    <div class="tl-scroll" id="tlScroll">
+      <div class="tl-timeline">
+        <div class="tl-vline"><div class="tl-vline-fill" id="tlVlineFill"></div></div>
+        <div class="tl-steps" id="tlSteps"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script src="/static/js/app.js"></script>
+</body>
+</html>
